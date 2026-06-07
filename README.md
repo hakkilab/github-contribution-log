@@ -1,15 +1,15 @@
-# Contribution [#]: [Issue Title]
+# Contribution 1: lyrics: Configuration option for ReST writing #2806
 
-**Contribution Number:** [1 / 2 / 3]  
-**Student:** [Your Name]  
-**Issue:** [GitHub issue link]  
-**Status:** [Phase I / Phase II / Phase III / Phase IV] [In Progress / Complete]
+**Contribution Number:** 1
+**Student:** Blake Hakkila
+**Issue:** https://github.com/beetbox/beets/issues/2806
+**Status:** Phase I Complete
 
 ---
 
 ## Why I Chose This Issue
 
-[1-2 paragraphs explaining why this issue interests you, how it matches your skills/learning goals, what you hope to learn]
+I chose this issue because it looked like a nice and simple issue for first time contribution. The beets also project has thorough documentation on how to setup the build environment and contribute, which seemed like great support for a first time contributor like myself. I'm very familiar with Python so the tech stack for the beets project also lined up nicely. My main goal is I hope to get my feet wet with open source contribution and be able to have my first PR merged through this issue. I think I'll learn more about how to get set up and work through the open source contribution model and see an issue all the way through the process.
 
 ---
 
