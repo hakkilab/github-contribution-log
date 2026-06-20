@@ -3,7 +3,7 @@
 **Contribution Number:** 1
 **Student:** Blake Hakkila
 **Issue:** https://github.com/beetbox/beets/issues/2806
-**Status:** Phase II Complete
+**Status:** Phase IV Complete
 
 ---
 
@@ -173,50 +173,68 @@ I will add automated tests to check for each combination of providing or not pro
 
 ### Unit Tests
 
-- [ ] Test case 1: [Description]
-- [ ] Test case 2: [Description]
-- [ ] Test case 3: [Description]
-
-### Integration Tests
-
-- [ ] Integration scenario 1
-- [ ] Integration scenario 2
+- [x] Test case 1: Setting `rest_directory` in the configuration and passing an argument using `-r` using relative paths, expect output to the `-r` argument path
+- [x] Test case 2: Setting `rest_directory` in the configuration using a relative path, expect output to the `rest_directory` path
+- [x] Test case 3: Passing an argument using `-r` using a relative path, expect output to the `-r` argument path
+- [x] Test case 4: Setting `rest_directory` in the configuration and passing an argument using `-r` using absolute paths, expect output to the `-r` argument path
+- [x] Test case 5: Setting `rest_directory` in the configuration using an absolute path, expect output to the `rest_directory` path
+- [x] Test case 6: Passing an argument using `-r` using an absolute path, expect output to the `-r` argument path
+- [x] Test case 7: Setting `rest_directory` in the configuration and passing an argument using `-r` using user home paths, expect output to the `-r` argument path
+- [x] Test case 8: Setting `rest_directory` in the configuration using a user home path, expect output to the `rest_directory` path
+- [x] Test case 9: Passing an argument using `-r` using a user home path, expect output to the `-r` argument path
+- [x] Test case 10: No `rest_directory` configurationg or `-r` argument, expect no output
 
 ### Manual Testing
 
-[What you tested manually and results]
+- Tested passing an output directory by the command line using `-r` setting, and verified there was output at that path
+- Tested setting `rest_directory` in `config.yaml`, and verified there was output at that path
+- Tested setting `rest_directory` in `config.yaml` and passing a different path to the `-r` command line arg, verified the path passed using `-r` was where output was written
+- Tested not setting `rest_directory` or passing anything using `-r` and verified there was not output
+- Tested using absolute, relative, and user home paths for `rest_directory` and verified they all output to the correct locations
 
 ---
 
 ## Implementation Notes
 
-### Week [X] Progress
+### Week 1 Progress
 
-[What you built this week, challenges faced, decisions made]
+This week I implemented the `rest_directory` config option by changing `default=None` to `default=self.config["rest_directory"].get(Optional(str))` and adding `"rest_directory": None` to the `self.config.add()` call in `beetsplug/lyrics.py`. I realized while doing some testing that just using `default=self.config["rest_directory"].get()` caused errors later on since other data types like ints and lists can't be passed to `Path()`, so I changed it to `default=self.config["rest_directory"].get(str)`. This caused issued with the default `None` not being allowed so I ended on `default=self.config["rest_directory"].get(Optional(str))` which allows `None` or a string. I also found that unlike the command line, when a user home path was set in the config file (`~/test` for example), the output would be written to `./~/test` instead of `~/test`. This ended up being due to the path not expanding the user home, so I added a `expanduser()` call to the `Path(opts.rest_directory)` call. 
 
-### Week [Y] Progress
+Then I wrote tests to ensure that every combination of setting or not setting the output directory through the config file or the command line worked as expected. I also added tests to check that the config file could support relative, absolute, and user home paths since I had seen failures with relative and user home paths during my implementation. Finally I added some tests to ensure that invalid data types (types other than `None` or `str`) were rejected. My tests worked by writing a config file in the pytest temp directory, parsing that config file, parsing a command line argument line, and then ensuring that files were found in the expected subdirectory of the temp directory.
 
-[Continue documenting as you work]
+After that development I updated the documentation in `docs/plugins/lyrics.rst` and the changelog in `docs/changelog.rst` to describe the new config option.
+
+I submitted my PR and got some feedback that my tests were more extensive than desired since they replicated some tests that check for actual file output. There were also some suggestions to remove config data type tests since thats testing the `confuse` package not `beet`, to replace config file writing/reading with setting config through `self.config`, and to use `self.run_command` to run the lyric output generation instead of `cmd.func`. Based on this feedback I refactored my tests to use a mock to only track where output would occur without actually doing any output, used the recommended `self.config` and `self.run_command`, and removed the unnecessary config data type tests.
 
 ### Code Changes
 
-- **Files modified:** [List]
-- **Key commits:** [Links to important commits]
-- **Approach decisions:** [Why you chose certain approaches]
+- **Files modified:**
+    - [beetsplug/lyrics.py](https://github.com/hakkilab/beets/blob/rest-directory-config/beetsplug/lyrics.py)
+    - [test/plugins/test_lyrics.py](https://github.com/hakkilab/beets/blob/rest-directory-config/test/plugins/test_lyrics.py)
+    - [docs/plugins/lyrics.rst](https://github.com/hakkilab/beets/blob/rest-directory-config/docs/plugins/lyrics.rst)
+    - [docs/changelog.rst](https://github.com/hakkilab/beets/blob/rest-directory-config/docs/changelog.rst)
+- **Key commits:**
+    - [lyrics: add rest_directory configuration option](https://github.com/beetbox/beets/commit/478ac8cb639a9dd9a1fc9c8294004ea3db1cd9c4)
+    - [Fixed tests to remove confuse testing and add mock for RestFiles](https://github.com/beetbox/beets/commit/a7aeb6db924a932ff18e90d10660b4c499688113)
+- **Approach decisions:**
+
+    I chose to use `default=self.config["rest_directory"].get()` because it reflected how other config values were handled for the lyrics plugin. I added `Optional(str)` to the `get` call so that both `None` and string values could be parsed for the configuration, where `None` would be the default empty configuration and a string would be a output directory path. I then chose to add `expanduser()` to `Path(opts.rest_directory)` so user home paths in the config file would be handled properly.
+
+    For tests, I initially had a set of tests that tested integration between config parsing, output directory handling, and ReST file output. I initially chose to handle config by writing config files and then passing them in to be parsed using `self.config.set_file()` and `self.config.read()` as I thought setting configuration directly through assignments to `self.config` didnt properly test that config file parsing actually worked. However, based on PR feedback, I ended up changing to direct assignment through `self.config`. I had also originally written helper code to use `cmd.parser.parse_args` and `cmd.func` to run the lyric output since that is how it was implemented in the lyrics plugin, but I got PR feedback that pointed me to a nicer `self.run_command` helper already available, so I was able to remove the repeated logic. PR feedback told me that checking actual input was a bit too extensive since other tests covered this, so I ended up using a mock instead to simply record what path was passed to the class that handles output, which lets me check the functionality without actually outputting files.
 
 ---
 
 ## Pull Request
 
-**PR Link:** [GitHub PR URL when submitted]
+**PR Link:** https://github.com/beetbox/beets/pull/6745
 
-**PR Description:** [Draft or final PR description - much of the content above can be adapted]
+**PR Description:** Adds a `rest_directory` configuration option to the lyrics plugin that specifies a directory for ReST output, equivalent to the `-r, --write-rest` command line argument
 
 **Maintainer Feedback:**
-- [Date]: [Summary of feedback received]
-- [Date]: [How you addressed it]
+- 06/19/2026: Maintainer feedback was that tests are a bit too extensive due to repeated test of ReST output files, config data type handling tests are unnecessary, and I should refactor to use `self.config` for setting config and `self.run_command` to run the lyrics plugin
+- 06/19/2026: I added a mock to record the output path so only the path would be checked instead of doing actual ReST output and checking the files output, I removed the unecessary data type tests, and I refactored to use `self.config` and `self.run_command` as suggested
 
-**Status:** [Awaiting review / Iterating / Approved / Merged]
+**Status:** Awaiting review
 
 ---
 
@@ -224,20 +242,20 @@ I will add automated tests to check for each combination of providing or not pro
 
 ### Technical Skills Gained
 
-[What you learned technically]
+I learned how to go through the entire open source contribution model, including issue selection, forking and dev environment setup, following contribution guidelines, and submitting a PR.
 
 ### Challenges Overcome
 
-[What was hard and how you solved it]
+The hardest part was getting set up to develop for the project and learning how to write tests for the project. I was able to fix these issues by Googling for the issues I ran into with environment setup and by reading through other tests to see how they were written and what infrastructure they used.
 
 ### What I'd Do Differently Next Time
 
-[Reflection on your process]
+Next time, I would search through the code base more extensively to see what kind of testing helpers and infrastructure are set up so I don't replicate code that later needs to be replaced, as I missed a very useful helper for running the beets project.
 
 ---
 
 ## Resources Used
 
-- [Link to helpful documentation]
-- [Tutorial or Stack Overflow post that helped]
-- [GitHub issues or discussions that helped]
+- [Beets Contributing Guide](https://github.com/beetbox/beets/blob/master/CONTRIBUTING.rst)
+- [Beets Docs](https://beets.readthedocs.io/en/stable/)
+- [Confuse Docs](https://confuse.readthedocs.io/en/latest/)
