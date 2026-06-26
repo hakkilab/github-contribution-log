@@ -173,16 +173,10 @@ I will add automated tests to check for each combination of providing or not pro
 
 ### Unit Tests
 
-- [x] Test case 1: Setting `rest_directory` in the configuration and passing an argument using `-r` using relative paths, expect output to the `-r` argument path
-- [x] Test case 2: Setting `rest_directory` in the configuration using a relative path, expect output to the `rest_directory` path
-- [x] Test case 3: Passing an argument using `-r` using a relative path, expect output to the `-r` argument path
-- [x] Test case 4: Setting `rest_directory` in the configuration and passing an argument using `-r` using absolute paths, expect output to the `-r` argument path
-- [x] Test case 5: Setting `rest_directory` in the configuration using an absolute path, expect output to the `rest_directory` path
-- [x] Test case 6: Passing an argument using `-r` using an absolute path, expect output to the `-r` argument path
-- [x] Test case 7: Setting `rest_directory` in the configuration and passing an argument using `-r` using user home paths, expect output to the `-r` argument path
-- [x] Test case 8: Setting `rest_directory` in the configuration using a user home path, expect output to the `rest_directory` path
-- [x] Test case 9: Passing an argument using `-r` using a user home path, expect output to the `-r` argument path
-- [x] Test case 10: No `rest_directory` configurationg or `-r` argument, expect no output
+- [x] Test case 1: Setting `rest_directory` in the configuration and passing an argument using `-r`, expect output to the `-r` argument path
+- [x] Test case 2: Setting `rest_directory` in the configuration, expect output to the `rest_directory` path
+- [x] Test case 3: Passing an argument using `-r`, expect output to the `-r` argument path
+- [x] Test case 4: Setting `rest_directory` in the configuration using a user home path, expect output to the `rest_directory` path where the user home is expanded
 
 ### Manual Testing
 
@@ -204,18 +198,26 @@ Then I wrote tests to ensure that every combination of setting or not setting th
 
 After that development I updated the documentation in `docs/plugins/lyrics.rst` and the changelog in `docs/changelog.rst` to describe the new config option.
 
-I submitted my PR and got some feedback that my tests were more extensive than desired since they replicated some tests that check for actual file output. There were also some suggestions to remove config data type tests since thats testing the `confuse` package not `beet`, to replace config file writing/reading with setting config through `self.config`, and to use `self.run_command` to run the lyric output generation instead of `cmd.func`. Based on this feedback I refactored my tests to use a mock to only track where output would occur without actually doing any output, used the recommended `self.config` and `self.run_command`, and removed the unnecessary config data type tests.
+I submitted my PR and got some feedback that my tests were more extensive than desired since they replicated some tests that check for actual file output. There were also some suggestions to remove config data type tests since thats testing the `confuse` package not `beet`, to replace config file writing/reading with setting config through `self.config`, and to use `self.run_command` to run the lyric output generation instead of `cmd.func`. Based on this feedback I refactored my tests to use a mock to only track where output would occur without actually doing any output, used the recommended `self.config` and `self.run_command`, and removed the unnecessary config data type tests. I then requested another review.
+
+I got some additional feedback on my PR that testing relative, absolute, and user paths was unnecessary, and the tests could be simplified to only test the various combinations of setting an output path in the config vs using the command line. I messaged back and mentioned that I added these tests since I saw issues where user home paths were not handled properly and tested each kind to ensure they were all handled as expected, and provided some suggestions on how to adjust the tests based on this reasoning. I got a response to keep in the user home path expansion test and remove the other tests. After removing the tests, I asked for another review.
+
+### Week 2 Progress
+
+The maintainer suggested removing the test where there is no configuration or command line argument passed so the test logic could be simplified. After removing this test and fixing an issue with my changelog changes, I asked for another review and my PR was approved and merged in!
 
 ### Code Changes
 
 - **Files modified:**
-    - [beetsplug/lyrics.py](https://github.com/hakkilab/beets/blob/rest-directory-config/beetsplug/lyrics.py)
-    - [test/plugins/test_lyrics.py](https://github.com/hakkilab/beets/blob/rest-directory-config/test/plugins/test_lyrics.py)
-    - [docs/plugins/lyrics.rst](https://github.com/hakkilab/beets/blob/rest-directory-config/docs/plugins/lyrics.rst)
-    - [docs/changelog.rst](https://github.com/hakkilab/beets/blob/rest-directory-config/docs/changelog.rst)
+    - [beetsplug/lyrics.py](https://github.com/beetbox/beets/blob/master/beetsplug/lyrics.py)
+    - [test/plugins/test_lyrics.py](https://github.com/beetbox/beets/blob/master/test/plugins/test_lyrics.py)
+    - [docs/plugins/lyrics.rst](https://github.com/beetbox/beets/blob/master/docs/plugins/lyrics.rst)
+    - [docs/changelog.rst](https://github.com/beetbox/beets/blob/master/docs/changelog.rst)
 - **Key commits:**
     - [lyrics: add rest_directory configuration option](https://github.com/beetbox/beets/commit/478ac8cb639a9dd9a1fc9c8294004ea3db1cd9c4)
     - [Fixed tests to remove confuse testing and add mock for RestFiles](https://github.com/beetbox/beets/commit/a7aeb6db924a932ff18e90d10660b4c499688113)
+    - [Simplified tests by removing path variations, kept edge case test for user home path in config](https://github.com/beetbox/beets/pull/6745/commits/dc07242840af09d8d6012ce0e37d5ae02e2c46e6)
+    - [Removed no output test and simplified assert logic](https://github.com/beetbox/beets/pull/6745/commits/9e693fbfa4e66144416a58889163b45a78e7bcae)
 - **Approach decisions:**
 
     I chose to use `default=self.config["rest_directory"].get()` because it reflected how other config values were handled for the lyrics plugin. I added `Optional(str)` to the `get` call so that both `None` and string values could be parsed for the configuration, where `None` would be the default empty configuration and a string would be a output directory path. I then chose to add `expanduser()` to `Path(opts.rest_directory)` so user home paths in the config file would be handled properly.
@@ -231,10 +233,17 @@ I submitted my PR and got some feedback that my tests were more extensive than d
 **PR Description:** Adds a `rest_directory` configuration option to the lyrics plugin that specifies a directory for ReST output, equivalent to the `-r, --write-rest` command line argument
 
 **Maintainer Feedback:**
-- 06/19/2026: Maintainer feedback was that tests are a bit too extensive due to repeated test of ReST output files, config data type handling tests are unnecessary, and I should refactor to use `self.config` for setting config and `self.run_command` to run the lyrics plugin
-- 06/19/2026: I added a mock to record the output path so only the path would be checked instead of doing actual ReST output and checking the files output, I removed the unecessary data type tests, and I refactored to use `self.config` and `self.run_command` as suggested
+- 06/19/2026: Maintainer feedback was that tests are a bit too extensive due to repeated test of ReST output files, config data type handling tests are unnecessary, and I should refactor to use `self.config` for setting config and `self.run_command` to run the lyrics plugin.
+- 06/19/2026: I added a mock to record the output path so only the path would be checked instead of doing actual ReST output and checking the files output, I removed the unecessary data type tests, and I refactored to use `self.config` and `self.run_command` as suggested, and requested another review.
+- 06/20/2026: Maintainer feedback was that the variants testing relative, absolute, and user paths were unnecessary and the tests could be simplified to only test the configuration and command line interaction logic.
+- 06/20/2026: I mentioned to the maintainer that I added these tests since I saw issues with the user home path output during my testing. I asked whether all path tests should be kept as is, if the user home path test alone should be kept to prevent a possible bug in the future, or if I should remove all path variants as originally requested.
+- 06/20/2026: The maintainer said to go with the option to remove all path variations but keep one test for user home path expansion.
+- 06/20/2026: I made the requested changes to remove all path variation tests except for one user home path test, and requested another review.
+- 06/22/2026: The maintainer requested another test be removed that tested for no output when the config and command line were not used.
+- 06/22/2026: I removed the no output test and requested another review.
+- 06/23/2026: The maintainer approved my PR and merged in my branch.
 
-**Status:** Awaiting review
+**Status:** Merged
 
 ---
 
